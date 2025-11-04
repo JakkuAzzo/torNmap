@@ -283,7 +283,7 @@ SECURITY: Only scan systems you own or have explicit permission to test.
 
     # Parse and validate ports
     try:
-        ports = [int(x.strip()) for x in args.ports.split(",") if x.strip()]
+        ports = [int(x) for x in (s.strip() for s in args.ports.split(",")) if x]
         if not ports:
             parser.error("No valid ports specified")
         if len(ports) > MAX_PORTS_LIMIT:
@@ -299,7 +299,7 @@ SECURITY: Only scan systems you own or have explicit permission to test.
     if args.url:
         raw = args.url.strip()
         # If value looks like a scheme-less hostname, urlparse will put it in path — handle that.
-        if "//" not in raw and ("/" in raw):
+        if "//" not in raw and "/" in raw:
             # e.g. example.onion/some/path -> take first segment
             raw = raw.split("/")[0]
         parsed = urlparse(raw if "//" in raw else f"//{raw}", scheme="http")
