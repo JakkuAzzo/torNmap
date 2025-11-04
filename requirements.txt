@@ -1,0 +1,4 @@
+# Runtime dependencies for torNmap
+# Keep versions flexible; pin if you want reproducible installs.
+pysocks
+stem

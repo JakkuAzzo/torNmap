@@ -13,6 +13,7 @@ from stem.control import Controller
 import argparse
 import subprocess
 import sys
+from urllib.parse import urlparse
 
 # CONFIG
 TOR_SOCKS_HOST = '127.0.0.1'
@@ -137,7 +138,11 @@ def scan_ports(target=DEFAULT_TARGET, ports=PORTS, rotate_circuit=False, max_wor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tiny TCP probe over Tor (educational). DEFAULT target=127.0.0.1")
-    parser.add_argument("--target", "-t", default=DEFAULT_TARGET)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--target", "-t", default=DEFAULT_TARGET,
+                       help="target IP or hostname (default: %(default)s)")
+    group.add_argument("--url", "-u",
+                       help="target URL or hostname (e.g. http://site.onion or site.onion). If given, hostname is extracted and used as the target")
     parser.add_argument("--ports", "-p", default=",".join(str(x) for x in PORTS),
                         help="comma-separated ports")
     parser.add_argument("--rotate", action="store_true", help="rotate Tor circuit after each probe (slow)")
@@ -146,6 +151,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     ports = [int(x.strip()) for x in args.ports.split(",") if x.strip()]
+
+    # If URL provided, extract hostname (works for .onion addresses as well)
+    if args.url:
+        raw = args.url.strip()
+        # If value looks like a scheme-less hostname, urlparse will put it in path — handle that.
+        if "//" not in raw and ("/" in raw):
+            # e.g. example.onion/some/path -> take first segment
+            raw = raw.split("/")[0]
+        parsed = urlparse(raw if "//" in raw else f"//{raw}", scheme="http")
+        host = parsed.hostname or raw
+        target = host
+    else:
+        target = args.target
 
     # Verify SOCKS proxy unless explicitly skipped
     if not args.skip_socks_check:
@@ -166,5 +184,8 @@ if __name__ == "__main__":
                 "Rotation (--rotate) will be disabled. To enable rotation, set ControlPort in torrc and configure authentication.")
             rotate_flag = False
 
-    print(f"Scanning {args.target} ports {ports} via Tor SOCKS {TOR_SOCKS_HOST}:{TOR_SOCKS_PORT}")
-    scan_ports(target=args.target, ports=ports, rotate_circuit=rotate_flag)
+    if args.url:
+        print(f"Scanning {target} (from URL {args.url}) ports {ports} via Tor SOCKS {TOR_SOCKS_HOST}:{TOR_SOCKS_PORT}")
+    else:
+        print(f"Scanning {target} ports {ports} via Tor SOCKS {TOR_SOCKS_HOST}:{TOR_SOCKS_PORT}")
+    scan_ports(target=target, ports=ports, rotate_circuit=rotate_flag)
